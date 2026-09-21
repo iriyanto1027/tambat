@@ -1,0 +1,7 @@
+# Every text file in this repository uses LF, on every platform.
+# CRLF breaks shell scripts that run inside containers.
+* text=auto eol=lf
+
+# Shell scripts, spelled out. The CLI entry point has no extension.
+*.sh   text eol=lf
+tambat text eol=lf
