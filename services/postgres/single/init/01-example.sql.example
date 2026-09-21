@@ -1,0 +1,17 @@
+-- Example init script. This file does nothing as it stands: the entrypoint only
+-- runs *.sql, *.sql.gz, *.sql.xz, *.sql.zst and *.sh, so it logs "ignoring" for
+-- this one and moves on.
+--
+-- To use it:
+--   cp 01-example.sql.example 01-example.sql
+--   # uncomment what you need below
+--   docker compose down -v && docker compose up -d --wait
+--
+-- Scripts here run once, on first start, while the data directory is still empty.
+-- They never run again on an existing volume. See README.md in this folder.
+--
+-- Runs as POSTGRES_USER against POSTGRES_DB.
+
+-- CREATE SCHEMA IF NOT EXISTS app;
+
+-- CREATE EXTENSION IF NOT EXISTS pg_trgm;

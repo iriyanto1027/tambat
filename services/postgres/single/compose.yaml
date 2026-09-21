@@ -1,0 +1,66 @@
+# PostgreSQL, single node.
+#
+# Development only: default credentials, no TLS, no backups.
+#
+# Standalone use (no CLI needed), from this folder:
+#   docker network create tambat     # once per machine
+#   cp .env.example .env
+#   docker compose up -d --wait
+
+name: tambat-postgres-single
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Pinned instead of taking the image default, which moved: 17 uses
+      # /var/lib/postgresql/data, 18 uses /var/lib/postgresql/18/docker. One
+      # explicit path keeps this file working on both. It is a subdirectory of
+      # the volume, never its root, which avoids lost+found and volume-root
+      # ownership surprises.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      # 127.0.0.1 only: on Linux, published ports bypass UFW.
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    volumes:
+      - data:/var/lib/postgresql/data
+      # Scripts here run once, on first start, while the data directory is still
+      # empty. They never run again on an existing volume; to re-run them,
+      # `docker compose down -v` (deletes the data) and up again. See init/README.md.
+      - ./init:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      # The postgres user's home directory. Nothing worth keeping lives here, but
+      # it has to be mounted: postgres:18 declares VOLUME /var/lib/postgresql, and
+      # Docker matches image volumes by exact path, so without this Docker would
+      # attach an anonymous volume here to every container it creates.
+      - /var/lib/postgresql
+    # Docker's 64MB default /dev/shm is too small for parallel queries, which then
+    # fail with "could not resize shared memory segment".
+    shm_size: ${POSTGRES_SHM_SIZE}
+    healthcheck:
+      # Over TCP rather than the unix socket. During first-run initialisation the
+      # entrypoint runs a temporary socket-only server, so a socket check would
+      # report healthy too early; this also checks the path host apps use.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    extra_hosts:
+      # Docker Engine on Linux does not provide this name.
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  data:
+    # The major version is part of the name, so a 17 server can never be pointed
+    # at a data directory written by 18.
+    name: tambat-postgres-single-${POSTGRES_VERSION}-data
+
+networks:
+  default:
+    name: tambat
+    external: true
